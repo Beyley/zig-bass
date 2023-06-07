@@ -18,12 +18,22 @@ pub fn main() !void {
     try stream.play(true);
     try stream.setAttribute(.volume, 0.025);
 
-    std.debug.print("Press enter to exit...\n", .{});
     var buf: [1]u8 = [1]u8{0};
+    std.debug.print("Press enter to pause...\n", .{});
+    _ = try std.io.getStdIn().read(&buf);
+
+    try stream.pause();
+
+    std.debug.print("Press enter to unpause...\n", .{});
+    _ = try std.io.getStdIn().read(&buf);
+
+    try stream.play(false);
+
+    std.debug.print("Press enter to exit...\n", .{});
     _ = try std.io.getStdIn().read(&buf);
 
     // while (true) {
-    //     var position = try stream.channelGetSecondPosition();
+    //     var position = try stream.getSecondPosition();
 
     //     std.debug.print("pos: {d}\n", .{position});
     // }

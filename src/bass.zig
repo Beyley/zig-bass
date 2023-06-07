@@ -257,6 +257,12 @@ fn ChannelFunctions(comptime Type: type) type {
             return bassErrorToZigError(c.BASS_ErrorGetCode());
         }
 
+        pub fn pause(self: Type) !void {
+            const success = c.BASS_ChannelPause(self.handle);
+            if (success != 0) return;
+            return bassErrorToZigError(c.BASS_ErrorGetCode());
+        }
+
         pub fn setAttribute(self: Type, attribute: ChannelAttribute, value: f32) !void {
             const success = c.BASS_ChannelSetAttribute(self.handle, @enumToInt(attribute), value);
 
@@ -265,7 +271,7 @@ fn ChannelFunctions(comptime Type: type) type {
             }
         }
 
-        pub fn channelGetSecondPosition(self: Type) !f64 {
+        pub fn getSecondPosition(self: Type) !f64 {
             var byte_pos = c.BASS_ChannelGetPosition(self.handle, c.BASS_POS_BYTE);
 
             if (byte_pos == @bitCast(u64, @as(i64, -1))) {
