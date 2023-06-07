@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 const c = @cImport(@cInclude("bass.h"));
 
@@ -162,7 +163,13 @@ pub fn init(
         //Assert the frequency flag is set
         std.debug.assert(flags.frequency);
 
-    var success = c.BASS_Init(device_int, frequency orelse 44100, @bitCast(u32, flags), window, null);
+    var success = c.BASS_Init(
+        device_int,
+        frequency orelse 44100,
+        @bitCast(u32, flags),
+        if (builtin.os.tag == .windows) @ptrCast(c.HWND, @alignCast(@alignOf(c.HWND), window)) else window,
+        null,
+    );
 
     if (success != 0) return;
 
