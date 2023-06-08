@@ -200,6 +200,17 @@ pub fn getVolume() f32 {
 }
 
 pub const StreamFlags = packed struct(u32) {
+    pub const Union = packed union {
+        na: u2,
+        sample: Override,
+        stream: Prescan,
+    };
+
+    pub const Prescan = enum(u2) {
+        none = 0,
+        prescan = 2,
+    };
+
     pub const Override = enum(u2) {
         none = 0,
         ///Override the lowest volume stream when this one starts
@@ -229,8 +240,12 @@ pub const StreamFlags = packed struct(u32) {
     ///Unused, enabled FX on the stream?
     fx: bool = false,
     ///What should happen when there are too many streams playing and this one tries to play?
-    override_settings: Override = .none,
-    _padding: u21 = 0,
+    @"union": Union = .{ .na = 0 },
+    ///Automatically free the stream when it stops/ends
+    auto_free: bool = false,
+    ///Restrict the download rate of an internet file stream
+    restrict_rate: bool = false,
+    _padding: u19 = 0,
 };
 
 pub const ChannelAttribute = enum(u32) {
@@ -256,6 +271,31 @@ pub const ChannelAttribute = enum(u32) {
     vol_dsp_priority = 20,
 };
 
+pub const ActiveState = enum(u32) {
+    stopped = 0,
+    playing = 1,
+    stalled = 2,
+    paused = 3,
+    paused_device = 4,
+};
+
+pub const PositionMode = enum(u32) {
+    byte = 0,
+    music_order = 1,
+    ogg = 3,
+    end = 0x10,
+    loop = 0x11,
+};
+
+pub const PositionFlags = packed struct(u6) {
+    decode_to: bool = false,
+    flush: bool = false,
+    inexact: bool = false,
+    relative: bool = false,
+    reset: bool = false,
+    scan: bool = false,
+};
+
 fn ChannelFunctions(comptime Type: type) type {
     return struct {
         pub fn play(self: Type, restart: bool) !void {
@@ -268,6 +308,26 @@ fn ChannelFunctions(comptime Type: type) type {
             const success = c.BASS_ChannelPause(self.handle);
             if (success != 0) return;
             return bassErrorToZigError(c.BASS_ErrorGetCode());
+        }
+
+        pub fn stop(self: Type) !void {
+            const success = c.BASS_ChannelStop(self.handle);
+            if (success != 0) return;
+            return bassErrorToZigError(c.BASS_ErrorGetCode());
+        }
+
+        pub fn activeState(self: Type) !ActiveState {
+            var state = @intToEnum(ActiveState, c.BASS_ChannelIsActive(self.handle));
+
+            //As per docs, the state being `stopped` could mean stopped, or an error, so we need to check
+            if (state == .stopped) {
+                var err = bassErrorToZigError(c.BASS_ErrorGetCode());
+                if (err != Error.Ok) {
+                    return err;
+                }
+            }
+
+            return state;
         }
 
         pub fn setAttribute(self: Type, attribute: ChannelAttribute, value: f32) !void {
@@ -292,6 +352,30 @@ fn ChannelFunctions(comptime Type: type) type {
             }
 
             return second_pos;
+        }
+
+        pub fn getLength(self: Type, mode: PositionMode) !u64 {
+            //Assert mode is byte, music_order, or ogg, as per the docs
+            std.debug.assert(mode == .byte or mode == .music_order or mode == .ogg);
+
+            var position = c.BASS_ChannelGetLength(self.handle, @enumToInt(mode));
+            //If position is -1, then return an error
+            if (position == @bitCast(u64, @as(i64, -1))) {
+                return bassErrorToZigError(c.BASS_ErrorGetCode());
+            }
+
+            return position;
+        }
+
+        pub fn setPosition(self: Type, position: u64, mode: PositionMode, flags: PositionFlags) !void {
+            //Turn the mode into an int
+            var mode_int = @enumToInt(mode);
+            //Add in the bits from the flags, shift 24bits left, making the least signifigant bit be `0x1000000` (flush)
+            mode_int |= @intCast(u32, @bitCast(u6, flags)) << 24;
+
+            var success = c.BASS_ChannelSetPosition(self.handle, position, mode_int);
+            if (success != 0) return;
+            return bassErrorToZigError(c.BASS_ErrorGetCode());
         }
     };
 }
@@ -355,6 +439,120 @@ pub fn createFileStream(
     }
 
     return .{ .handle = handle };
+}
+
+pub const ConfigOption = enum(u32) {
+    ///Playback buffer length
+    buffer = 0,
+    ///Update period of playback buffers
+    update_period = 1,
+    global_sample_volume = 4,
+    global_stream_volume = 5,
+    global_music_volume = 6,
+    ///Volume translation curve
+    curve_volume = 7,
+    ///Panning translation curve
+    curve_pan = 8,
+    ///Pass 32-bit floating-point sample data to all DSP functions?
+    float_dsp = 9,
+    ///The 3D algorithm used for software mixed 3D channels
+    three_dimensional_algorithm = 10,
+    ///TIme to wait for a server to respond to a connection request
+    network_timeout = 11,
+    ///Internet download buffer length
+    network_buffer = 12,
+    ///Prevent channels being played when the output is paused
+    pause_noplay = 13,
+    ///Amount to pre-buffer before playing internet streams
+    network_prebuffer = 15,
+    ///Use passive mode in FTP connections?
+    network_passive = 18,
+    ///Recording buffer length
+    recording_buffer = 19,
+    ///Process URLs in playlists
+    network_playlist = 21,
+    ///IT virtual channels
+    music_virtual = 22,
+    ///File format verification length
+    verify = 23,
+    ///Number of update threads
+    update_threads = 24,
+    ///Output device buffer length
+    dev_buffer = 27,
+    ///Undocumented. Complain on the forums if you need this! https://www.un4seen.com/doc/#bass/BASS_SetConfig.html
+    recording_loopback = 28,
+    ///Undocumented. Complain on the forums if you need this! https://www.un4seen.com/doc/#bass/BASS_SetConfig.html
+    vista_truepos = 30,
+    ///Audio session configuration on iOS
+    ios_session = 34,
+    ///Include a "Default" entry in the output device list?
+    default_device = 36,
+    network_read_timeout = 37,
+    ///Undocumented. Complain on the forums if you need this! https://www.un4seen.com/doc/#bass/BASS_SetConfig.html
+    vista_speakers = 38,
+    ///Undocumented. Complain on the forums if you need this! https://www.un4seen.com/doc/#bass/BASS_SetConfig.html
+    ios_speaker = 39,
+    ///Disable the use of Media Foundation
+    disable_media_foundation = 40,
+    ///Undocumented. Complain on the forums if you need this! https://www.un4seen.com/doc/#bass/BASS_SetConfig.html
+    handles = 41,
+    ///Unicode device information
+    unicode = 42,
+    ///Default sample rate conversion quality
+    default_sample_rate_conversion = 43,
+    ///Default sample rate conversion quality for samples
+    sample_default_sample_rate_conversion = 44,
+    ///Asynchronous file reading buffer length
+    async_file_buffer = 45,
+    ///Pre-scan chained OGG files
+    ogg_prescan = 47,
+    ///Play the audio from videos using Media Foundation
+    media_foundation_video = 48,
+    ///Undocumented. Complain on the forums if you need this! https://www.un4seen.com/doc/#bass/BASS_SetConfig.html
+    airplay = 49,
+    ///Do not stop an output device when nothing is playing
+    device_nonstop = 50,
+    ///Undocumented. Complain on the forums if you need this! https://www.un4seen.com/doc/#bass/BASS_SetConfig.html
+    ios_nocategory = 51,
+    ///File format verification length for internet streams
+    verify_network = 52,
+    ///Output device update period
+    device_period = 53,
+    ///Undocumented. Complain on the forums if you need this! https://www.un4seen.com/doc/#bass/BASS_SetConfig.html
+    float = 54,
+    ///Undocumented. Complain on the forums if you need this! https://www.un4seen.com/doc/#bass/BASS_SetConfig.html
+    network_seek = 56,
+    ///Disable the use of Android media codecs
+    disable_android_media = 58,
+    ///Maximum nested playlist processing depth
+    network_playlist_depth = 59,
+    ///Undocumented. Complain on the forums if you need this! https://www.un4seen.com/doc/#bass/BASS_SetConfig.html
+    network_prebuffer_wait = 60,
+    ///Session ID to use for output on Android
+    android_session_id = 62,
+    ///Retain Windows mixer settings across sessions
+    wasapi_persist = 65,
+    ///Use WASAPI when recording
+    record_using_wasapi = 66,
+    ///Enable AAudio output on Android
+    android_aaudio = 67,
+    ///Use the same handle for a sample and its single channel
+    sample_onehandle = 69,
+    ///Request Shoutcast metadata?
+    network_shoutcast_metadata = 71,
+    ///Restricted download rate
+    network_restricted_rate = 72,
+    ///Include a "Default" entry in the recording device list
+    default_recording_device = 73,
+    ///Default playback ramping
+    no_ramp = 74,
+};
+
+pub fn setConfig(option: ConfigOption, value: u32) !void {
+    var success = c.BASS_SetConfig(@enumToInt(option), value);
+
+    if (success != 0) return;
+    return bassErrorToZigError(c.BASS_ErrorGetCode());
 }
 
 pub fn deinit() void {
