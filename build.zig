@@ -22,6 +22,10 @@ pub fn linkBass(exe: *std.Build.Step.Compile) void {
     };
     exe.addLibraryPath(bass_lib_path);
     exe.linkSystemLibrary("bass");
+    //On MacOS, for the libbass.dylib to resolve, we need to add this as an rpath
+    if (exe.target.isDarwin()) {
+        exe.addRPath("@executable_path");
+    }
 }
 
 pub fn installBass(b: *std.Build, target: std.zig.CrossTarget) void {
