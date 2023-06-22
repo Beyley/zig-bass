@@ -130,7 +130,7 @@ pub const Error = error{
 };
 
 fn bassErrorToZigError(error_int: c_int) Error {
-    const tag_name = @tagName(@intToEnum(ErrorInt, error_int));
+    const tag_name = @tagName(@enumFromInt(ErrorInt, error_int));
 
     const error_type_info: std.builtin.Type.ErrorSet = @typeInfo(Error).ErrorSet.?;
     inline for (error_type_info.?) |real_error_type| {
@@ -317,7 +317,7 @@ fn ChannelFunctions(comptime Type: type) type {
         }
 
         pub fn activeState(self: Type) !ActiveState {
-            var state = @intToEnum(ActiveState, c.BASS_ChannelIsActive(self.handle));
+            var state = @enumFromInt(ActiveState, c.BASS_ChannelIsActive(self.handle));
 
             //As per docs, the state being `stopped` could mean stopped, or an error, so we need to check
             if (state == .stopped) {
@@ -331,7 +331,7 @@ fn ChannelFunctions(comptime Type: type) type {
         }
 
         pub fn setAttribute(self: Type, attribute: ChannelAttribute, value: f32) !void {
-            const success = c.BASS_ChannelSetAttribute(self.handle, @enumToInt(attribute), value);
+            const success = c.BASS_ChannelSetAttribute(self.handle, @intFromEnum(attribute), value);
 
             if (success == 0) {
                 return bassErrorToZigError(c.BASS_ErrorGetCode());
@@ -358,7 +358,7 @@ fn ChannelFunctions(comptime Type: type) type {
             //Assert mode is byte, music_order, or ogg, as per the docs
             std.debug.assert(mode == .byte or mode == .music_order or mode == .ogg);
 
-            var position = c.BASS_ChannelGetLength(self.handle, @enumToInt(mode));
+            var position = c.BASS_ChannelGetLength(self.handle, @intFromEnum(mode));
             //If position is -1, then return an error
             if (position == @bitCast(u64, @as(i64, -1))) {
                 return bassErrorToZigError(c.BASS_ErrorGetCode());
@@ -369,7 +369,7 @@ fn ChannelFunctions(comptime Type: type) type {
 
         pub fn setPosition(self: Type, position: u64, mode: PositionMode, flags: PositionFlags) !void {
             //Turn the mode into an int
-            var mode_int = @enumToInt(mode);
+            var mode_int = @intFromEnum(mode);
             //Add in the bits from the flags, shift 24bits left, making the least signifigant bit be `0x1000000` (flush)
             mode_int |= @intCast(u32, @bitCast(u6, flags)) << 24;
 
@@ -549,7 +549,7 @@ pub const ConfigOption = enum(u32) {
 };
 
 pub fn setConfig(option: ConfigOption, value: u32) !void {
-    var success = c.BASS_SetConfig(@enumToInt(option), value);
+    var success = c.BASS_SetConfig(@intFromEnum(option), value);
 
     if (success != 0) return;
     return bassErrorToZigError(c.BASS_ErrorGetCode());
