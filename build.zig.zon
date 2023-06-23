@@ -1,0 +1,4 @@
+.{
+    .name = "zig-bass",
+    .version = "0.0.0",
+}
