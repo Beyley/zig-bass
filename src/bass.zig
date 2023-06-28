@@ -130,7 +130,7 @@ pub const Error = error{
 };
 
 fn bassErrorToZigError(error_int: c_int) Error {
-    const tag_name = @tagName(@enumFromInt(ErrorInt, error_int));
+    const tag_name = @tagName(@as(ErrorInt, @enumFromInt(error_int)));
 
     const error_type_info: std.builtin.Type.ErrorSet = @typeInfo(Error).ErrorSet.?;
     inline for (error_type_info.?) |real_error_type| {
@@ -166,8 +166,8 @@ pub fn init(
     var success = c.BASS_Init(
         device_int,
         frequency orelse 44100,
-        @bitCast(u32, flags),
-        if (builtin.os.tag == .windows) @ptrCast(c.HWND, @alignCast(@alignOf(c.HWND), window)) else window,
+        @as(u32, @bitCast(flags)),
+        if (builtin.os.tag == .windows) @as(c.HWND, @ptrCast(@alignCast(window))) else window,
         null,
     );
 
@@ -184,7 +184,7 @@ pub const Version = packed struct(u32) {
 };
 
 pub fn getVersion() Version {
-    return @bitCast(Version, c.BASS_GetVersion());
+    return @as(Version, @bitCast(c.BASS_GetVersion()));
 }
 
 pub fn setVolume(volume: f32) !void {
@@ -317,7 +317,7 @@ fn ChannelFunctions(comptime Type: type) type {
         }
 
         pub fn activeState(self: Type) !ActiveState {
-            var state = @enumFromInt(ActiveState, c.BASS_ChannelIsActive(self.handle));
+            var state: ActiveState = @enumFromInt(c.BASS_ChannelIsActive(self.handle));
 
             //As per docs, the state being `stopped` could mean stopped, or an error, so we need to check
             if (state == .stopped) {
@@ -341,7 +341,7 @@ fn ChannelFunctions(comptime Type: type) type {
         pub fn getSecondPosition(self: Type) !f64 {
             var byte_pos = c.BASS_ChannelGetPosition(self.handle, c.BASS_POS_BYTE);
 
-            if (byte_pos == @bitCast(u64, @as(i64, -1))) {
+            if (byte_pos == @as(u64, @bitCast(@as(i64, -1)))) {
                 return bassErrorToZigError(c.BASS_ErrorGetCode());
             }
 
@@ -360,7 +360,7 @@ fn ChannelFunctions(comptime Type: type) type {
 
             var position = c.BASS_ChannelGetLength(self.handle, @intFromEnum(mode));
             //If position is -1, then return an error
-            if (position == @bitCast(u64, @as(i64, -1))) {
+            if (position == @as(u64, @bitCast(@as(i64, -1)))) {
                 return bassErrorToZigError(c.BASS_ErrorGetCode());
             }
 
@@ -371,7 +371,7 @@ fn ChannelFunctions(comptime Type: type) type {
             //Turn the mode into an int
             var mode_int = @intFromEnum(mode);
             //Add in the bits from the flags, shift 24bits left, making the least signifigant bit be `0x1000000` (flush)
-            mode_int |= @intCast(u32, @bitCast(u6, flags)) << 24;
+            mode_int |= @as(u32, @intCast(@as(u6, @bitCast(flags)))) << 24;
 
             var success = c.BASS_ChannelSetPosition(self.handle, position, mode_int);
             if (success != 0) return;
@@ -397,7 +397,7 @@ pub const Stream = extern struct {
 pub const StreamProc = fn (Stream, ?*anyopaque, u32, ?*anyopaque) callconv(.C) u32;
 
 pub fn createStream(frequency: u32, channels: u32, flags: StreamFlags, proc: ?*const StreamProc, user: ?*anyopaque) !Stream {
-    const handle = c.BASS_StreamCreate(frequency, channels, @bitCast(u32, flags), if (proc != null) @ptrCast(*const c.STREAMPROC, proc) else null, user);
+    const handle = c.BASS_StreamCreate(frequency, channels, @as(u32, @bitCast(flags)), if (proc != null) @as(*const c.STREAMPROC, @ptrCast(proc)) else null, user);
 
     if (handle == 0) {
         return bassErrorToZigError(c.BASS_ErrorGetCode());
@@ -432,7 +432,7 @@ pub fn createFileStream(
         .file => |file| file.length,
     };
 
-    const handle = c.BASS_StreamCreateFile(is_mem, data_ptr, offset, length, @bitCast(u32, flags));
+    const handle = c.BASS_StreamCreateFile(is_mem, data_ptr, offset, length, @as(u32, @bitCast(flags)));
 
     if (handle == 0) {
         return bassErrorToZigError(c.BASS_ErrorGetCode());
