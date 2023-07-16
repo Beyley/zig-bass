@@ -13,6 +13,7 @@ pub fn linkBass(exe: *std.Build.Step.Compile) void {
             },
             .aarch64 => {
                 switch (exe.target.getOsTag()) {
+                    .windows => break :blk root_path ++ "libs/aarch64-windows-gnu",
                     .macos => break :blk root_path ++ "libs/universal-macos",
                     else => @panic("Unknown OS for aarch64"),
                 }
@@ -42,6 +43,7 @@ pub fn installBass(b: *std.Build, target: std.zig.CrossTarget) void {
             },
             .aarch64 => {
                 switch (target.getOsTag()) {
+                    .windows => break :blk root_path ++ "libs/aarch64-windows-gnu",
                     .macos => break :blk root_path ++ "libs/universal-macos",
                     else => @panic("Unknown OS for aarch64"),
                 }

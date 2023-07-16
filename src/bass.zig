@@ -150,7 +150,7 @@ pub fn init(
     },
     frequency: ?u32,
     flags: InitFlags,
-    window: ?*anyopaque,
+    window: usize,
 ) !void {
     const device_int = switch (device) {
         .default => -1,
@@ -163,13 +163,15 @@ pub fn init(
         //Assert the frequency flag is set
         std.debug.assert(flags.frequency);
 
+    @setRuntimeSafety(false);
     var success = c.BASS_Init(
         device_int,
         frequency orelse 44100,
         @as(u32, @bitCast(flags)),
-        if (builtin.os.tag == .windows) @as(c.HWND, @ptrCast(@alignCast(window))) else window,
+        @ptrFromInt(window),
         null,
     );
+    @setRuntimeSafety(true);
 
     if (success != 0) return;
 
