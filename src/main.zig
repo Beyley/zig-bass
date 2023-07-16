@@ -5,7 +5,7 @@ const bass = @import("bass.zig");
 pub fn main() !void {
     std.debug.print("Initializing Bass.\n", .{});
 
-    try bass.init(.default, null, .{}, null);
+    try bass.init(.default, null, .{}, 0);
     defer bass.deinit();
 
     const version = bass.getVersion();

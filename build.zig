@@ -75,6 +75,7 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
     exe.linkLibC();
+    exe.addIncludePath("src/");
     b.installArtifact(exe);
 
     linkBass(exe);
