@@ -21,11 +21,11 @@ pub fn linkBass(exe: *std.Build.Step.Compile) void {
             else => @panic("Unknown CPU arch for Bass"),
         }
     };
-    exe.addLibraryPath(bass_lib_path);
+    exe.addLibraryPath(.{ .path = bass_lib_path });
     exe.linkSystemLibrary("bass");
     //On MacOS, for the libbass.dylib to resolve, we need to add this as an rpath
     if (exe.target.isDarwin()) {
-        exe.addRPath("@executable_path");
+        exe.addRPath(.{ .path = "@executable_path" });
     }
 }
 
