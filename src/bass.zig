@@ -340,6 +340,16 @@ fn ChannelFunctions(comptime Type: type) type {
             }
         }
 
+        pub fn getAttribute(self: Type, attribute: ChannelAttribute) !f32 {
+            var value: f32 = undefined;
+
+            if (c.BASS_ChannelGetAttribute(self.handle, @intFromEnum(attribute), &value) == 0) {
+                return bassErrorToZigError(c.BASS_ErrorGetCode());
+            }
+
+            return value;
+        }
+
         pub fn getSecondPosition(self: Type) !f64 {
             var byte_pos = c.BASS_ChannelGetPosition(self.handle, c.BASS_POS_BYTE);
 
