@@ -164,7 +164,7 @@ pub fn init(
         std.debug.assert(flags.frequency);
 
     @setRuntimeSafety(false);
-    var success = c.BASS_Init(
+    const success = c.BASS_Init(
         device_int,
         frequency orelse 44100,
         @as(u32, @bitCast(flags)),
@@ -190,7 +190,7 @@ pub fn getVersion() Version {
 }
 
 pub fn setVolume(volume: f32) !void {
-    var success = c.BASS_SetVolume(volume);
+    const success = c.BASS_SetVolume(volume);
 
     if (success != 0) return;
 
@@ -319,11 +319,11 @@ fn ChannelFunctions(comptime Type: type) type {
         }
 
         pub fn activeState(self: Type) !ActiveState {
-            var state: ActiveState = @enumFromInt(c.BASS_ChannelIsActive(self.handle));
+            const state: ActiveState = @enumFromInt(c.BASS_ChannelIsActive(self.handle));
 
             //As per docs, the state being `stopped` could mean stopped, or an error, so we need to check
             if (state == .stopped) {
-                var err = bassErrorToZigError(c.BASS_ErrorGetCode());
+                const err = bassErrorToZigError(c.BASS_ErrorGetCode());
                 if (err != Error.Ok) {
                     return err;
                 }
@@ -351,13 +351,13 @@ fn ChannelFunctions(comptime Type: type) type {
         }
 
         pub fn getSecondPosition(self: Type) !f64 {
-            var byte_pos = c.BASS_ChannelGetPosition(self.handle, c.BASS_POS_BYTE);
+            const byte_pos = c.BASS_ChannelGetPosition(self.handle, c.BASS_POS_BYTE);
 
             if (byte_pos == @as(u64, @bitCast(@as(i64, -1)))) {
                 return bassErrorToZigError(c.BASS_ErrorGetCode());
             }
 
-            var second_pos = c.BASS_ChannelBytes2Seconds(self.handle, byte_pos);
+            const second_pos = c.BASS_ChannelBytes2Seconds(self.handle, byte_pos);
 
             if (second_pos < 0) {
                 return bassErrorToZigError(c.BASS_ErrorGetCode());
@@ -370,7 +370,7 @@ fn ChannelFunctions(comptime Type: type) type {
             //Assert mode is byte, music_order, or ogg, as per the docs
             std.debug.assert(mode == .byte or mode == .music_order or mode == .ogg);
 
-            var position = c.BASS_ChannelGetLength(self.handle, @intFromEnum(mode));
+            const position = c.BASS_ChannelGetLength(self.handle, @intFromEnum(mode));
             //If position is -1, then return an error
             if (position == @as(u64, @bitCast(@as(i64, -1)))) {
                 return bassErrorToZigError(c.BASS_ErrorGetCode());
@@ -385,7 +385,7 @@ fn ChannelFunctions(comptime Type: type) type {
             //Add in the bits from the flags, shift 24bits left, making the least signifigant bit be `0x1000000` (flush)
             mode_int |= @as(u32, @intCast(@as(u6, @bitCast(flags)))) << 24;
 
-            var success = c.BASS_ChannelSetPosition(self.handle, position, mode_int);
+            const success = c.BASS_ChannelSetPosition(self.handle, position, mode_int);
             if (success != 0) return;
             return bassErrorToZigError(c.BASS_ErrorGetCode());
         }
@@ -398,7 +398,7 @@ pub const Stream = extern struct {
     handle: u32,
 
     pub fn deinit(self: Stream) void {
-        var success = c.BASS_StreamFree(self.handle);
+        const success = c.BASS_StreamFree(self.handle);
 
         if (success == 0) {
             std.debug.panicExtra(null, null, "Unknown error during BASS_Free??? err:{d}\n", .{c.BASS_ErrorGetCode()});
@@ -561,14 +561,14 @@ pub const ConfigOption = enum(u32) {
 };
 
 pub fn setConfig(option: ConfigOption, value: u32) !void {
-    var success = c.BASS_SetConfig(@intFromEnum(option), value);
+    const success = c.BASS_SetConfig(@intFromEnum(option), value);
 
     if (success != 0) return;
     return bassErrorToZigError(c.BASS_ErrorGetCode());
 }
 
 pub fn deinit() void {
-    var success = c.BASS_Free();
+    const success = c.BASS_Free();
 
     if (success != 0) return;
 
