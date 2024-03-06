@@ -1,10 +1,12 @@
 const std = @import("std");
 
-pub fn linkBass(exe: *std.Build.Step.Compile) void {
+pub fn linkBass(module: *std.Build.Module) void {
+    const target = module.resolved_target.?.result;
+
     const bass_lib_path = blk: {
-        switch (exe.target.getCpuArch()) {
+        switch (target.cpu.arch) {
             .x86_64 => {
-                switch (exe.target.getOsTag()) {
+                switch (target.os.tag) {
                     .windows => break :blk root_path ++ "libs/x86_64-windows-gnu",
                     .linux => break :blk root_path ++ "libs/x86_64-linux-gnu",
                     .macos => break :blk root_path ++ "libs/universal-macos",
@@ -12,7 +14,7 @@ pub fn linkBass(exe: *std.Build.Step.Compile) void {
                 }
             },
             .aarch64 => {
-                switch (exe.target.getOsTag()) {
+                switch (target.os.tag) {
                     .windows => break :blk root_path ++ "libs/aarch64-windows-gnu",
                     .macos => break :blk root_path ++ "libs/universal-macos",
                     else => @panic("Unknown OS for aarch64"),
@@ -21,20 +23,19 @@ pub fn linkBass(exe: *std.Build.Step.Compile) void {
             else => @panic("Unknown CPU arch for Bass"),
         }
     };
-    exe.addLibraryPath(.{ .path = bass_lib_path });
-    exe.linkSystemLibrary("bass");
+    module.addLibraryPath(.{ .path = bass_lib_path });
+    module.linkSystemLibrary("bass", .{});
     //On MacOS, for the libbass.dylib to resolve, we need to add this as an rpath
-    if (exe.target.isDarwin()) {
-        exe.addRPath(.{ .path = "@executable_path" });
+    if (target.os.tag.isDarwin()) {
+        module.addRPath(.{ .path = "@executable_path" });
     }
 }
 
-pub fn installBass(b: *std.Build, target: std.zig.CrossTarget) void {
+pub fn installBass(b: *std.Build, target: std.Target) void {
     const bass_lib_path = blk: {
-        switch (target.getCpuArch()) {
+        switch (target.cpu.arch) {
             .x86_64 => {
-                // std.debug.print("{any}\n", .{target.getOsTag()});
-                switch (target.getOsTag()) {
+                switch (target.os.tag) {
                     .windows => break :blk root_path ++ "libs/x86_64-windows-gnu",
                     .linux => break :blk root_path ++ "libs/x86_64-linux-gnu",
                     .macos => break :blk root_path ++ "libs/universal-macos",
@@ -42,7 +43,7 @@ pub fn installBass(b: *std.Build, target: std.zig.CrossTarget) void {
                 }
             },
             .aarch64 => {
-                switch (target.getOsTag()) {
+                switch (target.os.tag) {
                     .windows => break :blk root_path ++ "libs/aarch64-windows-gnu",
                     .macos => break :blk root_path ++ "libs/universal-macos",
                     else => @panic("Unknown OS for aarch64"),
@@ -53,7 +54,7 @@ pub fn installBass(b: *std.Build, target: std.zig.CrossTarget) void {
     };
 
     const bass_lib_file = blk: {
-        switch (target.getOsTag()) {
+        switch (target.os.tag) {
             .windows => break :blk "bass.dll",
             .linux => break :blk "libbass.so",
             .macos => break :blk "libbass.dylib",
