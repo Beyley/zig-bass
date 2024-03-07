@@ -89,15 +89,6 @@ pub fn build(b: *std.Build) !void {
     }
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
-
-    const lib = b.addStaticLibrary(.{
-        .name = "zig-bass",
-        .root_source_file = .{ .path = root_path ++ "src/bass.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-    linkBass(lib);
-    b.installArtifact(lib);
 }
 
 fn root() []const u8 {
