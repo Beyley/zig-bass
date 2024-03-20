@@ -27,7 +27,7 @@ pub fn linkBass(module: *std.Build.Module) void {
     module.linkSystemLibrary("bass", .{});
     //On MacOS, for the libbass.dylib to resolve, we need to add this as an rpath
     if (target.os.tag.isDarwin()) {
-        module.addRPath(.{ .path = "@executable_path" });
+        module.addRPathSpecial("@executable_path");
     }
 }
 
